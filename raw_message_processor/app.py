@@ -11,7 +11,7 @@ from .parsers import get_parser
 
 
 async def process_message(message, producer: AIOKafkaProducer):
-    """카프가 메시지 전처리"""
+    """카프카 메시지 전처리"""
     try:
         # 1. 메시지 타입에 적절한 파서를 선택
         message_type = "inspector"
@@ -21,8 +21,8 @@ async def process_message(message, producer: AIOKafkaProducer):
         parsed_message = parser.parse(message.value)
 
         # 3. 배치 정보를 가져옴
-        # 이 부분은 저장용 consumer에서 구현하는 것이 좋을 것 같음
-        # (pandas 테이블 활용 배치단위 처리 가능)
+        # 이 부분은 parserd_message_loader에서 구현 
+        # pandas 테이블 활용 배치 단위로 처리하면 유리할 것임
         # batch_info = await context.get_data()
 
         # 4. 실시간 데이터에 배치 정보를 포함
@@ -38,7 +38,9 @@ async def process_message(message, producer: AIOKafkaProducer):
         )
 
     except ParserNotFoundError as e:
-        logger.error(f"parser selection error: {e}", extra={"message_type": message_type})
+        logger.error(
+            f"parser selection error: {e}", extra={"message_type": message_type}
+        )
     except ParsingError as e:
         logger.error(
             f"Message Parsing error: {e}",

@@ -116,7 +116,9 @@ class AsyncBatchConsumer:
             data = await consumer.getmany(timeout_ms=3000)
             for tp, msgs in data.items():
                 first_offset = msgs[0].offset
-                self.msg_buffer.extend([json.load(io.BytesIO(msg.value)) for msg in msgs])
+                self.msg_buffer.extend(
+                    [json.load(io.BytesIO(msg.value)) for msg in msgs]
+                )
             self.offset = {tp: msgs[-1].offset + 1}
             logger.debug(f"[c] offset: {first_offset} - {msgs[-1].offset}")
 
@@ -138,7 +140,9 @@ class AsyncBatchConsumer:
                 for tp, msgs in data.items():
                     first_offset = msgs[0].offset
                     for msg in msgs:
-                        self.msg_buffer.extend([j for j in json.load(io.BytesIO(msg.value))])
+                        self.msg_buffer.extend(
+                            [j for j in json.load(io.BytesIO(msg.value))]
+                        )
                 self.offset = {tp: msg.offset + 1}
                 logger.debug(f"[c] offset: {first_offset} - {msg.offset}")
 
@@ -151,7 +155,9 @@ class AsyncBatchConsumer:
         """
 
         def to_parquet(copied_msg, copied_offset):
-            logger.info(f"save2s3 = [ss] (pid {os.getpid()}) writing to s3, offset {copied_offset}")
+            logger.info(
+                f"save2s3 = [ss] (pid {os.getpid()}) writing to s3, offset {copied_offset}"
+            )
             try:
                 self.prcs_cnt.value += 1
                 dataframe = (
@@ -164,10 +170,16 @@ class AsyncBatchConsumer:
                     dataframe = dataframe.drop_duplicates(keep="last")
                 # dt, topcode
                 dataframe["dt"] = dataframe["INSP_DT"].str[:8]
-                dataframe["topcode"] = dataframe["TESTCODE"].map(self.topcode_map).fillna("others")
+                dataframe["topcode"] = (
+                    dataframe["TESTCODE"].map(self.topcode_map).fillna("others")
+                )
                 # kafka timestamp와 날짜 차이가 심한 데이터는 dt기준 99년 12월 31일에 저장
-                series_kdt = pd.to_datetime(dataframe["KDT"], format="%Y%m%d", errors="ignore")
-                series_dt = pd.to_datetime(dataframe["dt"], format="%Y%m%d", errors="ignore")
+                series_kdt = pd.to_datetime(
+                    dataframe["KDT"], format="%Y%m%d", errors="ignore"
+                )
+                series_dt = pd.to_datetime(
+                    dataframe["dt"], format="%Y%m%d", errors="ignore"
+                )
                 condition = abs(series_kdt - series_dt) > timedelta(days=14)
                 dataframe.loc[condition, "dt"] = "20991231"
                 # 데이터프레임 정리
@@ -182,7 +194,9 @@ class AsyncBatchConsumer:
                 dataframe["k_mon"] = series_kdt.dt.strftime("%m")
                 dataframe["k_day"] = series_kdt.dt.strftime("%d")
                 dataframe = dataframe.drop(columns=["KDT"])
-                dataframe = dataframe.sort_values(by=["k_year", "k_mon", "k_day", "dt", "topcode"])
+                dataframe = dataframe.sort_values(
+                    by=["k_year", "k_mon", "k_day", "dt", "topcode"]
+                )
                 # parquet 저장
                 if self.filesystem == "s3":
                     object_storage_fs = s3fs.S3FileSystem(
@@ -208,7 +222,9 @@ class AsyncBatchConsumer:
                     )
                 self.saved_offset.put(copied_offset)
                 self.err_cnt.value = 0
-                logger.info(f"save2s3 = [ss] (pid {os.getpid()}) saved size: {len(copied_msg)}")
+                logger.info(
+                    f"save2s3 = [ss] (pid {os.getpid()}) saved size: {len(copied_msg)}"
+                )
             except Exception as ex:
                 self.err_cnt.value += 1
                 logger.error(
@@ -225,7 +241,9 @@ class AsyncBatchConsumer:
             (time() - self.lastest_save_time) < 60 * 10  # 시간 경과
         ):
             pass
-        elif len(self.msg_buffer) == 0:  # 시간이 경과한 후에도 메세지가 없는 경우는 저장하지 않음
+        elif (
+            len(self.msg_buffer) == 0
+        ):  # 시간이 경과한 후에도 메세지가 없는 경우는 저장하지 않음
             pass
         else:
             copied_msg_from_buffer = self.msg_buffer.copy()
@@ -240,7 +258,9 @@ class AsyncBatchConsumer:
             self.lastest_save_time = time()
         # offset 설정
         try:
-            saved_offset = self.saved_offset.get(block=False)  # Queue가 비었을 때 exception 발생
+            saved_offset = self.saved_offset.get(
+                block=False
+            )  # Queue가 비었을 때 exception 발생
             logger.info(f"save2s3 = [s] committed offset: {saved_offset}")
             await consumer.commit(saved_offset)
         except Exception:
@@ -287,7 +307,9 @@ class AsyncBatchConsumer:
                     asyncio.create_task(save2s3_func(consumer))
                 )  # 2*5:1로 테스크 비중을 달리함
                 for _ in range(2):
-                    tasks += [asyncio.create_task(consume_func(consumer)) for _ in range(5)]
+                    tasks += [
+                        asyncio.create_task(consume_func(consumer)) for _ in range(5)
+                    ]
                     await asyncio.sleep(0)
                 await asyncio.wait(tasks)
                 tasks.clear()

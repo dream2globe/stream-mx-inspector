@@ -45,7 +45,9 @@ class InspectorLogParser(BaseParser):
             booting_list.append(test_item)
 
         # 4. header
-        header_log = raw_text[delimiter_start_pos["header"] : delimiter_start_pos["body"]]
+        header_log = raw_text[
+            delimiter_start_pos["header"] : delimiter_start_pos["body"]
+        ]
 
         header_dict = {}
         for line in header_log.split("\r\n")[1:]:  # delimiter가 있는 첫 줄 제외
@@ -73,7 +75,9 @@ class InspectorLogParser(BaseParser):
             test_item["INSP_DTL_SEQ"] = str(seq)
             # 중복 검사 이력이 있는지 확인하여 Y, N 추가
             tested_items.add(test_item["Test_Conditions"])
-            test_item["IS_FINAL"] = "Y" if test_item["Test_Conditions"] in tested_items else "N"
+            test_item["IS_FINAL"] = (
+                "Y" if test_item["Test_Conditions"] in tested_items else "N"
+            )
             body_list.append(test_item)
 
         # 6. tail
@@ -113,7 +117,9 @@ class InspectorLogParser(BaseParser):
             if start_pos == -1:
                 break
             else:
-                end_pos = start_pos + raw_text[start_pos:].find(between[1]) + len(between[1])
+                end_pos = (
+                    start_pos + raw_text[start_pos:].find(between[1]) + len(between[1])
+                )
                 raw_text = raw_text[:start_pos] + raw_text[end_pos:]
         return raw_text
 
@@ -132,7 +138,9 @@ class InspectorLogParser(BaseParser):
         ]
 
         # Test_Conditions로 시작하는 라인에서 키를 추출
-        start_pos = self.find_words(raw_text, ["\r\nTest Item", "\r\nTest Condition"]) + 2
+        start_pos = (
+            self.find_words(raw_text, ["\r\nTest Item", "\r\nTest Condition"]) + 2
+        )
         if start_pos == -1:
             raise KeyExtractionError
         end_pos = start_pos + raw_text[start_pos + 2 :].find("\r\n")  # +2는 \r\n 반영

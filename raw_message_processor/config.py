@@ -1,9 +1,10 @@
+import tomllib
 from pathlib import Path
 
 from pydantic import BaseModel
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
 
-CONFIG_FILE_PATH = Path(__file__).parent / "configs" / "env_gumi_dev"
+CONFIG_FILE_PATH = Path(__file__).parent / "configs" / "gumi_dev.toml"
 
 
 class ProducerSetting(BaseModel):
@@ -28,10 +29,12 @@ class AppSettings(BaseSettings):
 
     producer: ProducerSetting
     consumer: ConsumerSetting
-    model_config = SettingsConfigDict(
-        env_file=CONFIG_FILE_PATH,
-        env_nested_delimiter="__",
-    )
+
+    @classmethod
+    def from_toml(cls, toml_path: Path) -> "AppSettings":
+        with open(toml_path, "rb") as f:
+            config_data = tomllib.load(f)
+        return cls(**config_data)
 
 
-settings = AppSettings()
+settings = AppSettings.from_toml(CONFIG_FILE_PATH)

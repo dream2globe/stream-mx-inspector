@@ -21,7 +21,7 @@ async def process_message(message, producer: AIOKafkaProducer):
         parsed_message = parser.parse(message.value)
 
         # 3. 배치 정보를 가져옴
-        # 이 부분은 parserd_message_loader에서 구현 
+        # 이 부분은 parsed_message_loader에서 구현 
         # pandas 테이블 활용 배치 단위로 처리하면 유리할 것임
         # batch_info = await context.get_data()
 
@@ -31,7 +31,6 @@ async def process_message(message, producer: AIOKafkaProducer):
 
         # 5. 다른 토픽으로 다시 프로듀싱함
         await producer.send_and_wait(settings.producer.detail_topic, detail_message)
-        # await producer.send_and_wait(settings.producer.master_topic, final_message)
         logger.info(
             "Message processed and produced successfully.",
             extra={"produced_message": parsed_message},

@@ -1,9 +1,11 @@
 from ..exceptions import ParserNotFoundError
 from .base import BaseParser
-from .inspector_log_parser import InspectorLogParser
+from .inspector_log_parser import DefaultInspectorLogParser, RFInpsectorLogParser
 
 PARSERS: dict[str, type[BaseParser]] = {
-    "inspector": InspectorLogParser,
+    "default": DefaultInspectorLogParser,
+    "rf_signal": RFInpsectorLogParser,
+    "rf_calibration": RFInpsectorLogParser,
 }
 
 

@@ -3,7 +3,7 @@ from ..logger import logger
 from .base import BaseParser
 
 
-class InspectorLogParser(BaseParser):
+class DefaultInspectorLogParser(BaseParser):
     def parse(self, message: bytes) -> dict:
         raw_text = message.decode("utf-8")
         parsed_message = self.process(raw_text)
@@ -72,7 +72,7 @@ class InspectorLogParser(BaseParser):
             # 추출한 키에 로그 값을 대입
             test_item = dict(zip(columns, line.split(",")))
             # 검사 항목의 진행 순서 추가
-            test_item["INSP_DTL_SEQ"] = str(seq)
+            test_item["INSP_DTL_SEQ"] = seq
             # 중복 검사 이력이 있는지 확인하여 Y, N 추가
             tested_items.add(test_item["Test_Conditions"])
             test_item["IS_FINAL"] = (
@@ -97,6 +97,10 @@ class InspectorLogParser(BaseParser):
         # 7. 결과 조합
         return {
             "PREHEADER": booting_list,
+            "HEADER": header_dict,
+            "BODY": body_list,
+            "TAIL": tail_dict,
+        } if booting_list else {
             "HEADER": header_dict,
             "BODY": body_list,
             "TAIL": tail_dict,
@@ -139,7 +143,7 @@ class InspectorLogParser(BaseParser):
 
         # Test_Conditions로 시작하는 라인에서 키를 추출
         start_pos = (
-            self.find_words(raw_text, ["\r\nTest Item", "\r\nTest Condition"]) + 2
+            self._find_words(raw_text, ["\r\nTest Item", "\r\nTest Condition"]) + 2
         )
         if start_pos == -1:
             raise KeyExtractionError
@@ -151,7 +155,7 @@ class InspectorLogParser(BaseParser):
             default_keys.extend(k.strip() for k in extracted_keys[len(default_keys) :])
         return default_keys
 
-    def find_words(self, text: str, words: list[str]) -> int | None:
+    def _find_words(self, text: str, words: list[str]) -> int | None:
         for word in words:
             pos = text.find(word)
             if pos != -1:
@@ -170,3 +174,34 @@ class InspectorLogParser(BaseParser):
             .replace(".", "_")
         )
         return key
+
+
+class RFInspectorLogParser(DefaultInspectorLogParser):
+    def process(self, raw_text: str) -> dict:
+        # 1. 기본 파서로 먼저 데이터 정제함 
+        parsed_massage = super().process(raw_text)
+
+        # 2. test_condition의 내용을 더욱 세부적으로 구분함
+        enriched_body = [self.enriched_test_item(body) for body in parsed_massage["body"]]
+        parsed_massage["body"] = enriched_body
+        return parsed
+
+    def enriched_test_item(test_item: dict[str, str]) -> dict:
+        """분석이 용이하도록 검화 항목의 정보를 세분화함 
+
+        Args:
+            test_item (dict): 검사기 Log의 Body부분에 기록된 검사 측정값 
+
+        Returns:
+            dict: Tech_Band_RTX_Channel_SigPath_Item 형태의 검사 항목을 "_" 기준으로 구분하여
+                기존 항목에 키와 값을 추가
+        """
+
+        sequence = ["tech", "band", "rtx", "channel", "sigpath", "item"]
+        splited_info = test_item["Test_Conditions"].split("_")
+        if len(splited_info) != 6:
+            return test_item
+
+        enriched_body = {key:info for key, info in zip(sequence, splited_info)}
+        test_item.update(enriched_body)
+        return test_item

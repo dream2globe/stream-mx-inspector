@@ -1,0 +1,22 @@
+env: "prod"
+log_level: "INFO"
+
+spark:
+  app_name: "KafkaIcebergStreamer_Prod"
+  master: "k8s://https://<k8s-api-server>" # Kubernetes API 서버 주소
+
+kafka:
+  bootstrap_servers: "kafka-prod-broker1:9092,kafka-prod-broker2:9092"
+  topic: "user-events-prod"
+  group_id: "prod-streamer-group"
+  schema_registry_url: "http://schema-registry.confluent:8081"
+  schema_file_path: null
+
+iceberg:
+  catalog_name: "prod_catalog"
+  catalog_uri: "jdbc:postgresql://prod-postgres.db:5432/prod_metastore"
+  catalog_warehouse: "s3a://my-prod-bucket/warehouse"
+  target_table: "prod_catalog.db.user_events"
+
+api:
+  enrichment_api_url: "http://user-enrichment-service.internal/api"

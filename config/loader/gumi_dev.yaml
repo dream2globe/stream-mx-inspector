@@ -1,0 +1,22 @@
+env: "dev"
+log_level: "DEBUG"
+
+spark:
+  app_name: "KafkaIcebergStreamer_Dev"
+  master: "local[*]"
+
+kafka:
+  bootstrap_servers: "localhost:9092"
+  topic: "user-events-dev"
+  group_id: "dev-streamer-group"
+  schema_registry_url: null
+  schema_file_path: "schemas/user_events.avsc"
+
+iceberg:
+  catalog_name: "dev_catalog"
+  catalog_uri: "jdbc:postgresql://localhost:5432/dev_metastore"
+  catalog_warehouse: "s3a://my-dev-bucket/warehouse"
+  target_table: "dev_catalog.db.user_events"
+
+api:
+  enrichment_api_url: "http://localhost:8000/api"

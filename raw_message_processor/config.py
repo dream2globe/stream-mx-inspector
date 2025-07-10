@@ -11,8 +11,7 @@ class ProducerSetting(BaseModel):
     """프로듀서 설정"""
 
     bootstrap_servers: str
-    master_topic: str
-    detail_topic: str
+    topic: str
     compression_type: str | None = None
 
 

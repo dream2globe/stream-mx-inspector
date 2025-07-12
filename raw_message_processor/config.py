@@ -4,14 +4,17 @@ from pathlib import Path
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 
-CONFIG_FILE_PATH = Path(__file__).parent / "configs" / "gumi_dev.toml"
+CONFIG_FILE_PATH = (
+    Path(__file__).parent.parent / "configs" / "processor" / "gumi_dev.toml"
+)
 
 
 class ProducerSetting(BaseModel):
     """프로듀서 설정"""
 
     bootstrap_servers: str
-    topic: str
+    master_topic: str
+    detail_topic: str
     compression_type: str | None = None
 
 

@@ -1,45 +1,38 @@
 import asyncio
 import json
+from pathlib import Path
 
 import uvloop
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 
+from utils.logger import logger, setup_logger
+
 from .config import settings
-from .exceptions import ParserNotFoundError, ParsingError
-from .logger import logger
-from .parsers import get_parser
+from .exceptions import ParsingError
+from .parsers import get_parser, get_test_code
+
+LOG_FILE_PATH = Path(__file__).parent.parent / "logs" / "raw_message_processor.log"
 
 
 async def process_message(message, producer: AIOKafkaProducer):
-    """카프카 메시지 전처리"""
+    """카프카의 원 메시지를 처리하여 새로운 토픽으로 전달합니다."""
     try:
-        # 1. 메시지 타입에 적절한 파서를 선택
-        message_type = "inspector"
-        parser = get_parser(message_type)
+        # 1. 테스크 코드(공정)에 맞는 파서를 선택
+        test_code = get_test_code(message.value)
+        parser = get_parser(test_code)
 
-        # 2. 메시지를 파싱함
+        # 2.디테일 데이터를 파싱하여 전송
         parsed_message = parser.parse(message.value)
-
-        # 3. 배치 정보를 가져옴
-        # 이 부분은 parsed_message_loader에서 구현 
-        # pandas 테이블 활용 배치 단위로 처리하면 유리할 것임
-        # batch_info = await context.get_data()
-
-        # 4. 실시간 데이터에 배치 정보를 포함
-        detail_message = json.dumps(parsed_message).encode("utf-8")
-        logger.debug(detail_message)
-
-        # 5. 다른 토픽으로 다시 프로듀싱함
-        await producer.send_and_wait(settings.producer.detail_topic, detail_message)
-        logger.info(
-            "Message processed and produced successfully.",
-            extra={"produced_message": parsed_message},
+        await producer.send(
+            settings.producer.detail_topic, json.dumps(parsed_message).encode("utf-8")
         )
 
-    except ParserNotFoundError as e:
-        logger.error(
-            f"parser selection error: {e}", extra={"message_type": message_type}
+        # 3.마스터 데이터를 파싱하여 전송 (바디 없이 헤더, 테일 정보만 포함)
+        del parsed_message["BODY"]
+        await producer.send(
+            settings.producer.detail_topic, json.dumps(parsed_message).encode("utf-8")
         )
+
     except ParsingError as e:
         logger.error(
             f"Message Parsing error: {e}",
@@ -53,18 +46,22 @@ async def process_message(message, producer: AIOKafkaProducer):
 
 
 async def main():
-    """어플리케이션 초기화 및 실행"""
+    """어플리케이션 초기화 및 실행을 담당합니다."""
+    # 로커 세팅
+    setup_logger(log_level="INFO", log_file=LOG_FILE_PATH)
 
     # 컨슈머 및 프로듀서 실행
     consumer = AIOKafkaConsumer(
         settings.consumer.topic,
         bootstrap_servers=settings.consumer.bootstrap_servers,
         group_id=settings.consumer.group_id,
+        auto_offset_reset="earliest",
         enable_auto_commit=False,
     )
     producer = AIOKafkaProducer(
         bootstrap_servers=settings.producer.bootstrap_servers,
         compression_type=settings.producer.compression_type,
+        max_request_size=1048576 * 5,
     )
     await consumer.start()
     await producer.start()
@@ -72,15 +69,14 @@ async def main():
     # 카프카 메시지 프로세싱
     try:
         while True:
-            message_batch = await consumer.getmany(timeout_ms=10000, max_records=100)
+            message_batch = await consumer.getmany(timeout_ms=10000, max_records=200)
             if not message_batch:
                 continue
 
-            tasks = []
             for tp, messages in message_batch.items():
                 logger.info(f"Fetched {len(messages)} messages from partition {tp}.")
-                for message in messages:
-                    tasks.append(process_message(message, producer))
+                tasks = [process_message(message, producer) for message in messages]
+
             if tasks:
                 await asyncio.gather(*tasks)
 

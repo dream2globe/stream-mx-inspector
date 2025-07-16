@@ -1,0 +1,71 @@
+{
+  "type": "record",
+  "name": "full_inspector_message",
+  "fields": [
+    {
+      "name": "header",
+      "type": {
+        "type": "record",
+        "name": "Header",
+        "fields": [
+          {"name": "INSP_DT", "type": "string"},
+          {"name": "P_N", "type": "string"},
+          {
+            "name": "ADDITIONAL_INFO",
+            "type": ["null", {"type": "map", "values": "string"}],
+            "default": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "body",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "item",
+          "fields": [
+            {"name": "Test_Conditions", "type": "string"},
+            {"name": "Measured_Value", "type": "string"},
+            {"name": "Lower_Limit", "type": "string"},
+            {"name": "Upper_Limit", "type": "string"},
+            {"name": "P_F", "type": "string"},
+            {"name": "Sec", "type": "string"},
+            {"name": "Code_Value", "type": "string"},
+            {"name": "Code_Lower_Limit", "type": "string"},
+            {"name": "Code_Upper_Limit", "type": "string"},
+            {"name": "INSP_DTL_SEQ", "type": "string"},
+            {"name": "IS_FINAL", "type": "string"},
+            {
+            "name": "RF_INFO",
+              "type": ["null", {"type": "map", "values": "string"}],
+              "default": null
+            },
+            {
+              "name": "ADDITIONAL_INFO",
+              "type": ["null", {"type": "map", "values": "string"}],
+              "default": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "tail",
+      "type": {
+        "type": "record",
+        "name": "Header",
+        "fields": [
+          {"name": "RESULT", "type": "string"},
+          {"name": "TEST_ITEM", "type": "string"},
+          {
+            "name": "ADDITIONAL_INFO",
+            "type": ["null", {"type": "map", "values": "string"}],
+            "default": null
+          }
+        ]
+      }
+    }
+  ]
+}

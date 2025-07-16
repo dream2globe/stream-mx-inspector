@@ -1,15 +1,16 @@
 import asyncio
-import json
 from pathlib import Path
 
 import uvloop
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+from avro.schema import full_schema, partial_schema
 
 from utils.logger import logger, setup_logger
 
 from .config import settings
 from .exceptions import ParsingError
 from .parsers import get_parser, get_test_code
+from .schema import serialize_to_avro
 
 LOG_FILE_PATH = Path(__file__).parent.parent / "logs" / "raw_message_processor.log"
 
@@ -21,16 +22,17 @@ async def process_message(message, producer: AIOKafkaProducer):
         test_code = get_test_code(message.value)
         parser = get_parser(test_code)
 
-        # 2.디테일 데이터를 파싱하여 전송
+        # 2. 데이터를 딕셔너리 타입으로 파싱함
         parsed_message = parser.parse(message.value)
-        await producer.send(
-            settings.producer.detail_topic, json.dumps(parsed_message).encode("utf-8")
-        )
 
-        # 3.마스터 데이터를 파싱하여 전송 (바디 없이 헤더, 테일 정보만 포함)
-        del parsed_message["BODY"]
-        await producer.send(
-            settings.producer.detail_topic, json.dumps(parsed_message).encode("utf-8")
+        # 3. 마스터 데이터(일부 정보)와 디테일 데이터(모든 정보)를 avro타입으로 직렬화 후 각각의 토픽으로 전송
+        await producer.send_and_wait(
+            settings.producer.master_topic,
+            serialize_to_avro(parsed_message, partial_schema),
+        )
+        await producer.send_and_wait(
+            settings.producer.detail_topic,
+            serialize_to_avro(parsed_message, full_schema),
         )
 
     except ParsingError as e:
@@ -47,7 +49,7 @@ async def process_message(message, producer: AIOKafkaProducer):
 
 async def main():
     """어플리케이션 초기화 및 실행을 담당합니다."""
-    # 로커 세팅
+    # 로거 세팅
     setup_logger(log_level="INFO", log_file=LOG_FILE_PATH)
 
     # 컨슈머 및 프로듀서 실행
@@ -80,7 +82,7 @@ async def main():
             if tasks:
                 await asyncio.gather(*tasks)
 
-            # await consumer.commit()
+            await consumer.commit()
             logger.info("Offset committed succuessfully for the processed batch.")
 
     finally:

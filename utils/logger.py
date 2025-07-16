@@ -7,7 +7,7 @@ def setup_logger(log_level="INFO", log_file="logs/app.log"):
     """
     Loguru 로거를 설정합니다.
     - 콘솔: 지정된 레벨 이상 출력
-    - 파일: WARNING 레벨 이상만 기록, 10MB마다 교체
+    - 파일: WARNING 레벨 이상만 기록, 10MB마다 교체하고 한달간 보관
     """
     logger.remove()  # 기본 핸들러 제거
 
@@ -25,12 +25,13 @@ def setup_logger(log_level="INFO", log_file="logs/app.log"):
     logger.add(
         log_file,
         level="WARNING",
-        rotation="10 MB",  # 10MB 마다 파일 교체
-        retention="7 days",  # 7일간 로그 보관
+        rotation="10 MB",  # 10MB 마다 새 파일 생성
+        retention="1 month",  # 한 달간 보관
         encoding="utf-8",
         format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} - {message}",
-        enqueue=True,  # 비동기, 멀티프로세스 환경에서 안전
+        enqueue=True,  # 비동기 로깅으로 성능 확보
         backtrace=True,
         diagnose=True,
+        # compression="zip",
     )
     logger.info("Logger setup complete.")

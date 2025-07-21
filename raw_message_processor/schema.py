@@ -6,12 +6,8 @@ from avro.io import BinaryEncoder, DatumWriter
 from avro.schema import SchemaParseException, parse
 from loguru import logger
 
-PARTIAL_SCHEMA_PATH = (
-    Path(__file__).parent.parent / "schema" / "partial_inspector_message.avsc"
-)
-FULL_SCHEMA_PATH = (
-    Path(__file__).parent.parent / "schema" / "full_inspector_message.avsc"
-)
+SUMMARY_SCHEMA_PATH = Path(__file__).parent.parent / "schema" / "summary_message.avsc"
+FULL_SCHEMA_PATH = Path(__file__).parent.parent / "schema" / "full_message.avsc"
 
 
 def get_avro_schema(file_path: Path) -> Schema:
@@ -48,5 +44,5 @@ def get_mandatory_keys(schema: Schema) -> set[str]:
     return {field.name for field in schema.fields if field.default is None}
 
 
-partial_schema = get_avro_schema(PARTIAL_SCHEMA_PATH)
+summary_schema = get_avro_schema(SUMMARY_SCHEMA_PATH)
 full_schema = get_avro_schema(FULL_SCHEMA_PATH)

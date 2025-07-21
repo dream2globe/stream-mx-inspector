@@ -1,7 +1,7 @@
 from utils.logger import logger
 
 from ..exceptions import DelimiterNotFoundError
-from ..schema import get_mandatory_keys, partial_schema
+from ..schema import get_mandatory_keys, summary_schema
 from .base import BaseParser
 
 
@@ -29,45 +29,41 @@ class DefaultLogParser(BaseParser):
         predefined_columns, additional_columns = self._extract_keys(raw_text)
 
         # 2. 주석 내용을 삭제
-        processed_text = self._remove_comment(raw_text)
+        cleaned_text = self._remove_comment(raw_text)
 
         # 3. 로그의 내용을 헤더, 바디, 테일로 구분
         delimiters = {"header": "#INIT", "body": "#TEST", "tail": "#END"}
-        delimiter_start_pos = {k: processed_text.find(v) for k, v in delimiters.items()}
+        delimiter_start_pos = {k: cleaned_text.find(v) for k, v in delimiters.items()}
         if any(v == -1 for v in delimiter_start_pos.values()):
             raise DelimiterNotFoundError(delimiter_start_pos.keys())
 
-        # 4. 헤더 앞에 부팅 로그 추출(Optional), 바디에 포함하되 검사 순서값은 0으로 고정
-        booting_log = processed_text[: delimiter_start_pos["header"]]
+        # 4. 측정값 추출
+        # 4.1 헤더 앞에 부팅 로그 추출(Optional), 바디에 포함하되 검사 순서값은 0으로 고정
+        booting_log = cleaned_text[: delimiter_start_pos["header"]]
         booting_record = self.log_to_record(
             booting_log, predefined_columns, additional_columns, False
         )
 
-        # 5. 헤더 추출
-        header_log = processed_text[
-            delimiter_start_pos["header"] : delimiter_start_pos["body"]
-        ]
-        mandatory_columns = get_mandatory_keys(partial_schema.get_field("HEADER"))
-        header_dict = self.log_to_dict(header_log, mandatory_columns)
-
-        # 6. 바디 추출
-        body_log = processed_text[
+        # 4.2. 바디 추출, 검사 순서값이 1씩 증가
+        body_log = cleaned_text[
             delimiter_start_pos["body"] : delimiter_start_pos["tail"]
         ]
         body_record = self.log_to_record(
             body_log, predefined_columns, additional_columns, True
         )
 
-        # 7. 테일 추출
-        tail_log = processed_text[delimiter_start_pos["tail"] :]
-        mandatory_columns = get_mandatory_keys(partial_schema.get_field("TAIL"))
-        tail_dict = self.log_to_dict(tail_log, mandatory_columns)
+        # 5. 헤드와 테일 부분의 검사 요약정보
+        header_log = cleaned_text[
+            delimiter_start_pos["header"] : delimiter_start_pos["body"]
+        ]
+        tail_log = cleaned_text[delimiter_start_pos["tail"] :]
+        mandatory_columns = get_mandatory_keys(summary_schema.get_field("SUMMARY"))
+        summary_dict = self.log_to_dict(header_log + tail_log, mandatory_columns)
 
-        # 8. 결과 조합 및 반환
+        # 6. 결과 조합 및 반환
         parsed_result = {
-            "HEADER": header_dict,
+            "SUMMARY": summary_dict,
             "BODY": booting_record + body_record,
-            "TAIL": tail_dict,
         }
         return parsed_result
 

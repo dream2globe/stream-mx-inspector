@@ -12,6 +12,37 @@ uv sync
 ```
 If you don't have `uv` installed, follow the [uv documentation](https://github.com/astral-sh/uv) for installation instructions.
 
+## Local Kafka Test Environment with fast-data-dev
+
+For local testing, you can use the `landoop/fast-data-dev` Docker image. It provides a complete, all-in-one Kafka environment, including a Broker, Zookeeper, Schema Registry, and REST Proxy, making it easy to set up a test environment on your local machine.
+
+### How to Use
+
+1.  **Pull the Docker Image:**
+    ```bash
+    docker pull landoop/fast-data-dev
+    ```
+
+2.  **Run the Container:**
+    ```bash
+    docker run -d --rm \
+      -p 2181:2181 \
+      -p 3030:3030 \
+      -p 8081-8083:8081-8083 \
+      -p 9092:9092 \
+      -p 9581-9585:9581-9585 \
+      -e ADV_HOST=127.0.0.1 \
+      --name kafka-dev \
+      landoop/fast-data-dev
+    ```
+    This command maps the required ports and sets `ADV_HOST` to `127.0.0.1`, allowing your local applications to connect to Kafka inside the container.
+
+3.  **Service Endpoints:**
+    *   **Kafka Broker**: `127.0.0.1:9092`
+    *   **Landoop UI (Web Interface)**: `http://127.0.0.1:3030`
+
+Once the container is running, you can start the `raw_message_processor` and `parsed_message_writer` services, and they will connect to the local Kafka cluster for end-to-end pipeline testing.
+
 ## Packages
 
 ### 1. `raw_message_processor`

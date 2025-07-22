@@ -3,7 +3,7 @@ from pathlib import Path
 
 from avro import Schema
 from avro.io import BinaryEncoder, DatumWriter
-from avro.schema import SchemaParseException, parse
+from avro.schema import RecordSchema, SchemaParseException, UnionSchema, parse
 from loguru import logger
 
 SUMMARY_SCHEMA_PATH = Path(__file__).parent.parent / "schema" / "summary_message.avsc"
@@ -39,9 +39,21 @@ def serialize_to_avro(message, schema: Schema) -> bytes:
         )
 
 
-def get_mandatory_keys(schema: Schema) -> set[str]:
-    """avro 스키마에서 필수 키를 찾아 리턴합니다."""
-    return {field.name for field in schema.fields if field.default is None}
+def get_mandatory_keys(schema: RecordSchema) -> set[str]:
+    """
+    Avro 레코드 스키마에서 필수 필드의 이름 집합을 반환합니다.
+    필수 필드는 타입에 'null'이 포함되지 않은 필드로 간주합니다.
+    """
+    mandatory_keys = set()
+    for field in schema.fields:
+        if isinstance(field.type, UnionSchema):
+            # 타입이 Union일 경우, 'null'을 포함하지 않으면 필수 필드입니다.
+            if not any(s.type == "null" for s in field.type.schemas):
+                mandatory_keys.add(field.name)
+        else:
+            # Union 타입이 아니면 항상 필수 필드입니다.
+            mandatory_keys.add(field.name)
+    return mandatory_keys
 
 
 summary_schema = get_avro_schema(SUMMARY_SCHEMA_PATH)

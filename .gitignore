@@ -10,5 +10,5 @@ wheels/
 .venv
 
 # Development Enviorment
-.vscode
+# .vscode
 .idx

@@ -1,0 +1,15 @@
+{
+    "IDX.aI.enableInlineCompletion": true,
+    "IDX.aI.enableCodebaseIndexing": true,
+    "notebook.formatOnSave.enabled": true,
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }        
+    },
+    "ruff.codeAction.fixViolation": {
+        "enable": false
+    },
+}

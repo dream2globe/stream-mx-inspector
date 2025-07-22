@@ -1,42 +1,57 @@
-import tomllib
 from pathlib import Path
 
-from pydantic import BaseModel
-from pydantic_settings import BaseSettings
+import yaml
+from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-CONFIG_FILE_PATH = (
-    Path(__file__).parent.parent / "configs" / "processor" / "gumi_dev.toml"
-)
-
-
-class ProducerSetting(BaseModel):
-    """프로듀서 설정"""
-
-    bootstrap_servers: str
-    master_topic: str
-    detail_topic: str
-    compression_type: str | None = None
+CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "loader" / "gumi_dev.yaml"
 
 
-class ConsumerSetting(BaseModel):
-    """컨슈머 설정"""
+def yaml_config_settings_source(settings: BaseSettings) -> dict:
+    """gumi_dev.yaml 파일에서 raw_message_processor 섹션을 로드합니다."""
+    try:
+        with open(CONFIG_PATH, "r") as f:
+            config = yaml.safe_load(f)
+            # 'raw_message_processor' 키 아래의 설정을 반환합니다.
+            return config.get("raw_message_processor", {})
+    except FileNotFoundError:
+        print(f"Configuration file not found at {CONFIG_PATH}")
+        return {}
 
-    bootstrap_servers: str
+
+class LogSettings(BaseModel):
+    level: str = "INFO"
+    path: Path = "logs/raw_message_processor.log"
+
+
+class KafkaConsumerSettings(BaseModel):
     topic: str
+    bootstrap_servers: list[str] | str
     group_id: str
 
 
+class KafkaProducerSettings(BaseModel):
+    master_topic: str
+    detail_topic: str
+    bootstrap_servers: list[str] | str
+    compression_type: str | None = None
+
+
 class AppSettings(BaseSettings):
-    """어플리케이션 전체 설정"""
+    """raw_message_processor 어플리케이션의 전체 설정을 관리합니다."""
 
-    producer: ProducerSetting
-    consumer: ConsumerSetting
+    log: LogSettings = Field(default_factory=LogSettings)
+    consumer: KafkaConsumerSettings
+    producer: KafkaProducerSettings
 
-    @classmethod
-    def from_toml(cls, toml_path: Path) -> "AppSettings":
-        with open(toml_path, "rb") as f:
-            config_data = tomllib.load(f)
-        return cls(**config_data)
+    model_config = SettingsConfigDict(
+        # .env 파일 로드 (필요 시)
+        env_file=".env",
+        env_nested_delimiter="__",
+        # 사용자 정의 소스 추가
+        custom_config_sources={"yaml_config": yaml_config_settings_source},
+    )
 
 
-settings = AppSettings.from_toml(CONFIG_FILE_PATH)
+# 설정 인스턴스 생성
+settings = AppSettings()

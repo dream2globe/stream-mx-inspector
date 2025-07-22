@@ -32,12 +32,9 @@ class TestCodeExtractionError(ParsingError):
         super().__init__(self.message)
 
 
-# class BodyKeyExtractionError(ParsingError):
-#     """
-#     로그에서 측정값의 컬럼을 구성하는 이름을 찾지 못하는 경우 발생하는 예외
-#     ('\r\nTest Item', '\r\nTest Condition'으로 시작함)
-#     """
+class UnsupportedTestCodeError(ParsingError):
+    """지원하지 않는 TESTCODE일 경우 발생하는 예외"""
 
-#     def __init__(self):
-#         self.message = "Not found column names of a measurement record"
-#         super().__init__(self.message)
+    def __init__(self, test_code: str):
+        self.message = f"Unsupported test code: '{test_code}'"
+        super().__init__(self.message)

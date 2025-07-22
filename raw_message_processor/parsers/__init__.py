@@ -1,28 +1,42 @@
 import re
 
-from ..exceptions import TestCodeExtractionError
+from ..exceptions import TestCodeExtractionError, UnsupportedTestCodeError
 from .base import BaseParser
-from .inspector_log_parser import DefaultLogParser, RFInspectorLogParser
+from .inspector_log_parser import InspectorLogParser, RFInspectorLogParser
 
-PARSERS: dict[str, type[BaseParser]] = {
-    "TOP41": RFInspectorLogParser,  # RF Final Test 공정
-    "TOP42": RFInspectorLogParser,  # RF Calibration 공정
+# 지원하는 파서들을 test_code를 키로 하여 딕셔너리에 등록합니다.
+# 새로운 파서를 추가할 때 이 딕셔너리만 수정하면 됩니다.
+_parsers: dict[str, type[BaseParser]] = {
+    "TOP42": RFInspectorLogParser,
+    "TOP41": RFInspectorLogParser,
 }
 
 
-def get_parser(test_code: str) -> BaseParser:
-    """테스트 코드에 맞는 파서 인스턴스를 반환하는 팩토리 함수"""
-    parser_class = PARSERS.get(test_code, DefaultLogParser)
+def get_parser_for(test_code: str) -> BaseParser:
+    """
+    주어진 test_code에 맞는 파서 인스턴스를 반환하는 팩토리 함수입니다.
+
+    Args:
+        test_code: 파서를 결정하기 위한 테스트 코드.
+
+    Returns:
+        test_code에 해당하는 BaseParser의 인스턴스.
+
+    Raises:
+        UnsupportedTestCodeError: 지원하는 파서가 없을 경우 발생합니다.
+    """
+    parser_class = _parsers.get(test_code, default=InspectorLogParser)
+    # if not parser_class:
+    #     raise UnsupportedTestCodeError(test_code)
     return parser_class()
 
 
 def get_test_code(message: bytes) -> str:
-    """메시지에서 테스트 코드를 추출하는 함수"""
-    pattern = r"\r\nTESTCODE\s*:(.*?)\r\n"
-    raw_text = message.decode("utf-8")
+    """메시지에서 테스트 코드를 추출하는 함수입니다."""
+    pattern = re.compile(rb"^TESTCODE\s*:\s*(.*?)\s*", re.IGNORECASE)
+    match = pattern.search(message)
 
-    match = re.search(pattern, raw_text)
-    if match is None:
-        raise TestCodeExtractionError
-    test_code = match.group(1).strip()
-    return test_code
+    if not match:
+        raise TestCodeExtractionError()
+
+    return match.group(1).decode("utf-8")

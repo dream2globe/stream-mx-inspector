@@ -1,56 +1,88 @@
 from pathlib import Path
+from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import BaseModel
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 
-CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "loader" / "gumi_dev.yaml"
+from utils.logger import logger
+
+CONFIG_PATH = Path(__file__).parent.parent / "config" / "processor" / "gumi_dev.yaml"
 
 
-def yaml_config_settings_source(settings: BaseSettings) -> dict:
-    """gumi_dev.yaml 파일에서 raw_message_processor 섹션을 로드합니다."""
+def yaml_config_settings_source() -> dict[str, Any]:
+    """yaml 파일에서 설정을 로드하는 커스텀 소스 함수입니다."""
     try:
-        with open(CONFIG_PATH, "r") as f:
-            config = yaml.safe_load(f)
-            # 'raw_message_processor' 키 아래의 설정을 반환합니다.
-            return config.get("raw_message_processor", {})
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
     except FileNotFoundError:
-        print(f"Configuration file not found at {CONFIG_PATH}")
-        return {}
+        logger.error(f"Configuration file not found at {CONFIG_PATH}")
+        exit(1)
 
 
 class LogSettings(BaseModel):
-    level: str = "INFO"
-    path: Path = "logs/raw_message_processor.log"
+    level: str
+    path: str
 
 
 class KafkaConsumerSettings(BaseModel):
     topic: str
-    bootstrap_servers: list[str] | str
+    bootstrap_servers: str
     group_id: str
 
 
 class KafkaProducerSettings(BaseModel):
     master_topic: str
     detail_topic: str
-    bootstrap_servers: list[str] | str
+    bootstrap_servers: str
     compression_type: str | None = None
+    max_request_size: int = 1048576
 
 
 class AppSettings(BaseSettings):
     """raw_message_processor 어플리케이션의 전체 설정을 관리합니다."""
 
-    log: LogSettings = Field(default_factory=LogSettings)
+    debug_mode: bool = False
+
+    log: LogSettings
     consumer: KafkaConsumerSettings
     producer: KafkaProducerSettings
 
     model_config = SettingsConfigDict(
-        # .env 파일 로드 (필요 시)
         env_file=".env",
+        env_file_encoding="utf-8",
         env_nested_delimiter="__",
-        # 사용자 정의 소스 추가
-        custom_config_sources={"yaml_config": yaml_config_settings_source},
+        case_sensitive=False,
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """
+        설정 소스의 우선 순위를 정의합니다.
+        1. 클래스 생성 시 직접 전달된 인수
+        2. '.env' 파일에서 불러온 값
+        3. 실제 환경 변수
+        4. yaml 파일에서 불러온 값
+        5. Docker 시크릿 등 파일 기반 시크릿
+        """
+        return (
+            yaml_config_settings_source,
+            init_settings,
+            dotenv_settings,
+            env_settings,
+            file_secret_settings,
+        )
 
 
 # 설정 인스턴스 생성

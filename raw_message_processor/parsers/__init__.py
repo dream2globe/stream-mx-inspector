@@ -1,8 +1,8 @@
 import re
 
-from ..exceptions import TestCodeExtractionError, UnsupportedTestCodeError
+from ..exceptions import TestCodeExtractionError
 from .base import BaseParser
-from .inspector_log_parser import InspectorLogParser, RFInspectorLogParser
+from .inspector_log_parser import DefaultInspectorLogParser, RFInspectorLogParser
 
 # 지원하는 파서들을 test_code를 키로 하여 딕셔너리에 등록합니다.
 # 새로운 파서를 추가할 때 이 딕셔너리만 수정하면 됩니다.
@@ -25,7 +25,7 @@ def get_parser_for(test_code: str) -> BaseParser:
     Raises:
         UnsupportedTestCodeError: 지원하는 파서가 없을 경우 발생합니다.
     """
-    parser_class = _parsers.get(test_code, default=InspectorLogParser)
+    parser_class = _parsers.get(test_code, default=DefaultInspectorLogParser)
     # if not parser_class:
     #     raise UnsupportedTestCodeError(test_code)
     return parser_class()

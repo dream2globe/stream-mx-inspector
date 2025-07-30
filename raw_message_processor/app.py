@@ -1,15 +1,15 @@
 import asyncio
-from pathlib import Path
 
 import uvloop
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+from avro.errors import AvroTypeException
 
 from utils.logger import logger, setup_logger
 
 from .config import settings
 from .exceptions import ParsingError, UnsupportedTestCodeError
-from .parsers import get_parser_for, get_test_code
-from .schema import full_schema, serialize_to_avro, summary_schema
+from .parser import get_parser_for, get_test_code
+from .schema import full_schema, master_schema, serialize_to_avro
 
 
 async def process_message(message: bytes, producer: AIOKafkaProducer):
@@ -26,7 +26,7 @@ async def process_message(message: bytes, producer: AIOKafkaProducer):
         # 3. 마스터 데이터(일부 정보)와 디테일 데이터(모든 정보)를 avro타입으로 직렬화 후 각각의 토픽으로 전송
         await producer.send_and_wait(
             settings.producer.master_topic,
-            serialize_to_avro(parsed_message, summary_schema),
+            serialize_to_avro(parsed_message["MASTER"], master_schema),
         )
         await producer.send_and_wait(
             settings.producer.detail_topic,
@@ -34,15 +34,21 @@ async def process_message(message: bytes, producer: AIOKafkaProducer):
         )
 
     except UnsupportedTestCodeError as e:
-        logger.warning(f"{e}. Skipping message.", extra={"raw_message": decoded_message})
+        logger.warning(
+            f"{e}. Skipping message.", extra={"raw_message": decoded_message}
+        )
     except ParsingError as e:
         logger.error(
-            f"Message Parsing error: {e}",
+            f"Message Parsing error: {type(e).__name__} - {e}",
             extra={"raw_message": decoded_message},
+        )
+    except AvroTypeException as e:
+        logger.error(
+            f"Avro serialzation error: {type(e).__name__} - {e}", exc_info=True
         )
     except Exception as e:
         logger.error(
-            f"An unexpected error occurred during message processing: {e}.",
+            f"An unexpected error occurred during message processing: {type(e).__name__} - {e}.",
             extra={"raw_message": decoded_message},
         )
 
@@ -82,12 +88,17 @@ async def main():
             tasks = []
             for tp, messages in result.items():
                 logger.info(f"Fetched {len(messages)} messages from partition {tp}.")
-                tasks.extend([process_message(message.value, producer) for message in messages])
-
+                tasks.extend(
+                    [
+                        process_message(message.value, producer)
+                        for message in messages
+                        if message.value is not None
+                    ]
+                )
             if tasks:
                 await asyncio.gather(*tasks)
-
-            await consumer.commit()
+            if not settings.debug_mode:
+                await consumer.commit()
             logger.info("Offset committed successfully for the processed batch.")
     finally:
         logger.info("Application shutting down.")

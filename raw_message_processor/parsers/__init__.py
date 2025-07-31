@@ -1,6 +1,6 @@
 import re
 
-from ..exceptions import TestCodeExtractionError
+from ..exceptions import TestCodeExtractionError, UnsupportedTestCodeError
 from .base import BaseParser
 from .inspector_log_parser import DefaultInspectorLogParser, RFInspectorLogParser
 
@@ -21,19 +21,16 @@ def get_parser_for(test_code: str) -> BaseParser:
 
     Returns:
         test_code에 해당하는 BaseParser의 인스턴스.
-
-    Raises:
-        UnsupportedTestCodeError: 지원하는 파서가 없을 경우 발생합니다.
     """
-    parser_class = _parsers.get(test_code, default=DefaultInspectorLogParser)
-    # if not parser_class:
-    #     raise UnsupportedTestCodeError(test_code)
-    return parser_class()
+    parser_class = _parsers.get(test_code, DefaultInspectorLogParser)
+    if not parser_class:
+        raise UnsupportedTestCodeError(test_code)
+    return parser_class(test_code)
 
 
 def get_test_code(message: bytes) -> str:
     """메시지에서 테스트 코드를 추출하는 함수입니다."""
-    pattern = re.compile(rb"^TESTCODE\s*:\s*(.*?)\s*", re.IGNORECASE)
+    pattern = re.compile(rb"\r\nTESTCODE\s*:\s*(.*?)\s*\r\n", re.IGNORECASE)
     match = pattern.search(message)
 
     if not match:

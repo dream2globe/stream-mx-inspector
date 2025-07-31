@@ -25,8 +25,9 @@ def yaml_config_settings_source() -> dict[str, Any]:
 
 
 class LogSettings(BaseModel):
-    level: str
-    path: str
+    console_level: str
+    file_level: str
+    file_path: str
 
 
 class KafkaConsumerSettings(BaseModel):
@@ -40,7 +41,7 @@ class KafkaProducerSettings(BaseModel):
     detail_topic: str
     bootstrap_servers: str
     compression_type: str | None = None
-    max_request_size: int = 1048576
+    max_request_size_mb: int = 1
 
 
 class AppSettings(BaseSettings):
@@ -77,13 +78,13 @@ class AppSettings(BaseSettings):
         5. Docker 시크릿 등 파일 기반 시크릿
         """
         return (
-            yaml_config_settings_source,
             init_settings,
             dotenv_settings,
             env_settings,
+            yaml_config_settings_source,  # type: ignore
             file_secret_settings,
         )
 
 
 # 설정 인스턴스 생성
-settings = AppSettings()
+settings = AppSettings()  # type: ignore

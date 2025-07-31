@@ -3,7 +3,7 @@ import sys
 from loguru import logger
 
 
-def setup_logger(log_level="INFO", log_file="logs/app.log"):
+def setup_logger(console_level="INFO", file_level="WARNING", log_file="logs/app.log"):
     """
     Loguru 로거를 설정합니다.
     - 콘솔: 지정된 레벨 이상 출력
@@ -14,7 +14,7 @@ def setup_logger(log_level="INFO", log_file="logs/app.log"):
     # 콘솔 로거 설정
     logger.add(
         sys.stderr,
-        level=log_level,
+        level=console_level,
         format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
         "<level>{level: <8}</level> | "
         "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
@@ -24,7 +24,7 @@ def setup_logger(log_level="INFO", log_file="logs/app.log"):
     # 파일 로거 설정 (WARNING 레벨 이상)
     logger.add(
         log_file,
-        level="WARNING",
+        level=file_level,
         rotation="10 MB",  # 10MB 마다 새 파일 생성
         retention="1 month",  # 한 달간 보관
         encoding="utf-8",

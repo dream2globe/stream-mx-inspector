@@ -2,12 +2,11 @@ import asyncio
 
 import uvloop
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
-from avro.errors import AvroTypeException
 
 from utils.logger import logger, setup_logger
 
 from .config import settings
-from .exceptions import ParsingError, UnsupportedTestCodeError
+from .exceptions import ParsingError, TestCodeExtractionError, UnsupportedTestCodeError
 from .parser import get_parser_for, get_test_code
 from .schema import full_schema, master_schema, serialize_to_avro
 
@@ -24,31 +23,27 @@ async def process_message(message: bytes, producer: AIOKafkaProducer):
         parsed_message = parser.parse(message)
 
         # 3. 마스터 데이터(일부 정보)와 디테일 데이터(모든 정보)를 avro타입으로 직렬화 후 각각의 토픽으로 전송
-        await producer.send_and_wait(
+        await producer.send(
             settings.producer.master_topic,
             serialize_to_avro(parsed_message["MASTER"], master_schema),
         )
-        await producer.send_and_wait(
+        await producer.send(
             settings.producer.detail_topic,
             serialize_to_avro(parsed_message, full_schema),
         )
 
+    except TestCodeExtractionError as e:
+        logger.error(f"{e}. Skipping message.", extra={"raw_message": decoded_message})
     except UnsupportedTestCodeError as e:
-        logger.warning(
-            f"{e}. Skipping message.", extra={"raw_message": decoded_message}
-        )
+        logger.error(f"{e}. Skipping message.", extra={"raw_message": decoded_message})
     except ParsingError as e:
         logger.error(
-            f"Message Parsing error: {type(e).__name__} - {e}",
+            f"[{test_code}] Message Parsing error of {e}",
             extra={"raw_message": decoded_message},
-        )
-    except AvroTypeException as e:
-        logger.error(
-            f"Avro serialzation error: {type(e).__name__} - {e}", exc_info=True
         )
     except Exception as e:
         logger.error(
-            f"An unexpected error occurred during message processing: {type(e).__name__} - {e}.",
+            f"[{test_code}] An unexpected error occurred during message processing of {e}.",
             extra={"raw_message": decoded_message},
         )
 
@@ -56,10 +51,16 @@ async def process_message(message: bytes, producer: AIOKafkaProducer):
 async def main():
     """어플리케이션 초기화 및 실행을 담당합니다."""
     # 로거 세팅 (설정 파일 기반)
-    setup_logger(log_level=settings.log.level, log_file=settings.log.path)
+    setup_logger(
+        console_level=settings.log.console_level,
+        file_level=settings.log.file_level,
+        log_file=settings.log.file_path,
+    )
 
     logger.info("Application starting with the following settings:")
-    logger.info(f"  - Log Level: {settings.log.level}, Path: {settings.log.path}")
+    logger.info(
+        f"  - Log Level: [Console] {settings.log.console_level} / [File] {settings.log.file_level}, Path: {settings.log.file_path}"
+    )
     logger.info(f"  - Kafka Consumer: {settings.consumer.model_dump()}")
     logger.info(f"  - Kafka Producer: {settings.producer.model_dump()}")
 
@@ -74,6 +75,7 @@ async def main():
     producer = AIOKafkaProducer(
         bootstrap_servers=settings.producer.bootstrap_servers,
         compression_type=settings.producer.compression_type,
+        max_request_size=settings.producer.max_request_size_mb * 1048576,
     )
     await consumer.start()
     await producer.start()

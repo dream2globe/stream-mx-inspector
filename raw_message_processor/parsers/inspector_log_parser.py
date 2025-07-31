@@ -18,10 +18,10 @@ DEFAULT_KEYS = [
 
 
 class DefaultInspectorLogParser(BaseParser):
-    def __init__(self, topcode: str) -> None:
-        self.topcode = topcode
+    def __init__(self, test_code: str) -> None:
+        super().__init__(test_code)
 
-    def parse(self, message: bytes) -> dict[str, str | list[str]]:
+    def parse(self, message: bytes) -> dict:
         raw_text = message.decode("utf-8")
         parsed_message = self.process(raw_text)
         return parsed_message
@@ -126,26 +126,37 @@ class DefaultInspectorLogParser(BaseParser):
             # empty line or delimiters
             if not line or line.isspace():
                 continue
-            # normal case
+            if line[0] == "#":
+                continue
+
             splited_line = tuple(map(str.strip, line.split(":")))
-            if len(splited_line) == 2:
-                key = self._replace_invalid_key_chars(splited_line[0])
-                value = splited_line[1]
-                if key in master_fields:
-                    default_dict[key] = value
-                else:
-                    additional_dict[key] = value
-            # abnormal case
-            if len(splited_line) > 2:
-                if splited_line[0] in ["TIME", "RDM_LOT"]:  # 시:분:초 데이터를 포함
-                    default_dict[splited_line[0]] = ":".join(splited_line[1:])
-                else:  # 마지막 데이터만 취득
-                    key = self._replace_invalid_key_chars(splited_line[-2])
-                    additional_dict[key] = splited_line[-1]
-                    logger.warning(f"An unexpected message of {self.topcode} : {line}")
-            # case of no ':'
-            else:
-                logger.warning(f"An unexpected message of {self.topcode} : {line}")
+            match len(splited_line):
+                # normal case
+                case 2:
+                    key = self._replace_invalid_key_chars(splited_line[0])
+                    value = splited_line[1]
+                    if key in master_fields:
+                        default_dict[key] = value
+                    else:
+                        additional_dict[key] = value
+                # abnormal case
+                case length if length > 2:
+                    match splited_line[0]:
+                        case "TIME" | "RDM_LOT":  # 시:분:초 데이터를 포함
+                            default_dict[splited_line[0]] = ":".join(splited_line[1:])
+                        case "RDMLOT":
+                            default_dict["RDM_LOT"] = ":".join(splited_line[1:])
+                        case _:  # 마지막 데이터만 취득
+                            key = self._replace_invalid_key_chars(splited_line[-2])
+                            additional_dict[key] = splited_line[-1]
+                            logger.warning(
+                                f"An unexpected message of {line} in {self.test_code}"
+                            )
+                # case of no ':'
+                case _:
+                    logger.warning(
+                        f"An unexpected message of {line} in {self.test_code}"
+                    )
         default_dict.update({"ADDITIONAL_INFO": additional_dict})
         return default_dict
 
@@ -216,10 +227,10 @@ class DefaultInspectorLogParser(BaseParser):
 
 
 class RFInspectorLogParser(DefaultInspectorLogParser):
-    def __init__(self, topcode: str) -> None:
-        super().__init__(topcode)
+    def __init__(self, test_code: str) -> None:
+        super().__init__(test_code)
 
-    def process(self, raw_text: str) -> dict[str, str | list[dict]]:
+    def process(self, raw_text: str) -> dict:
         """
         검사 항목(이름)을 참고하여 6가지 정보를 추출 후 파싱 결과(바디)에 추가 반영합니다.
         예) NR_n78_TX_636666CH_S876 R23 A54 P8_Ant54 SRS Tx Power 20dBm

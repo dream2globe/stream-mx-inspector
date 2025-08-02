@@ -1,41 +1,45 @@
-import io
 import json
 from pathlib import Path
 
-from fastavro import parse_schema, writer
-from fastavro.schema import SchemaParseException
-from fastavro.types import Schema
+from confluent_kafka.schema_registry import SchemaRegistryClient
+from confluent_kafka.schema_registry.avro import AvroSerializer
 
-from utils.logger import logger
+from .config import settings
 
 MASTER_SCHEMA_PATH = Path(__file__).parent.parent / "schema" / "master_message.json"
 FULL_SCHEMA_PATH = Path(__file__).parent.parent / "schema" / "full_message.json"
 
 
-def get_avro_schema(file_path: Path) -> Schema:
-    """avsc 파일을 읽어 avro 스키마로 변환합니다."""
-    try:
-        with open(file_path, "r") as f:
-            schema_json = json.load(f)
-            avro_schema = parse_schema(schema_json)
-            logger.info(f"Avro schema at {file_path} loaded successfully.")
-            return avro_schema
-    except FileNotFoundError:
-        logger.error(f"Avro schema file not found at {file_path}")
-        exit(1)
-    except SchemaParseException as e:
-        logger.error(f"Error parsing Avro schema: {e}")
-        exit(1)
+def get_avro_schema_from_file(file_path: Path) -> str:
+    """JSON 파일에서 Avro 스키마를 문자열로 읽어옵니다."""
+    with open(file_path, "r") as f:
+        return json.dumps(json.load(f))
 
 
-def serialize_to_avro(message: dict, schema: Schema) -> bytes:
-    """메시지를 Avro 형식으로 직렬화합니다."""
-    bytes_writer = io.BytesIO()
-    writer(bytes_writer, schema, [message])
-    return bytes_writer.getvalue()
+# Schema Registry 클라이언트 설정
+schema_registry_conf = {"url": settings.schema_registry.url}
+schema_registry_client = SchemaRegistryClient(schema_registry_conf)
+
+# Avro 스키마 로드
+master_schema_str = get_avro_schema_from_file(MASTER_SCHEMA_PATH)
+full_schema_str = get_avro_schema_from_file(FULL_SCHEMA_PATH)
+
+# master_schema.json을 파싱하여 필드 이름 목록을 글로벌 변수로 추출
+master_schema_dict = json.loads(master_schema_str)
+master_fields = {field["name"] for field in master_schema_dict.get("fields")}
 
 
-# 글로벌 인스턴스
-master_schema = get_avro_schema(MASTER_SCHEMA_PATH)
-master_fields = set(field["name"] for field in master_schema["fields"])  # type: ignore
-full_schema = get_avro_schema(FULL_SCHEMA_PATH)
+# AvroSerializer 인스턴스 생성
+serializer_conf = {"auto.register.schemas": False}
+avro_master_serializer = AvroSerializer(
+    schema_registry_client,
+    master_schema_str,
+    serializer_conf,
+    to_dict=lambda msg, ctx: msg,
+)
+avro_full_serializer = AvroSerializer(
+    schema_registry_client,
+    full_schema_str,
+    serializer_conf,
+    to_dict=lambda msg, ctx: msg,
+)

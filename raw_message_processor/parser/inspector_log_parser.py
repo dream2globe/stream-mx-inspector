@@ -58,15 +58,11 @@ class DefaultInspectorLogParser(BaseParser):
         booting_log = cleaned_text[: delimiter_start_pos["header"]]
         booting_record = self._log_to_record(booting_log, False)
         # 4-2. 바디 추출, 검사 순서값이 1씩 증가
-        body_log = cleaned_text[
-            delimiter_start_pos["body"] : delimiter_start_pos["tail"]
-        ]
+        body_log = cleaned_text[delimiter_start_pos["body"] : delimiter_start_pos["tail"]]
         body_record = self._log_to_record(body_log, True)
 
         # 5. 헤드와 테일 부분의 검사 요약정보
-        header_log = cleaned_text[
-            delimiter_start_pos["header"] : delimiter_start_pos["body"]
-        ]
+        header_log = cleaned_text[delimiter_start_pos["header"] : delimiter_start_pos["body"]]
         tail_log = cleaned_text[delimiter_start_pos["tail"] :]
         summary_dict = self._log_to_dict(header_log + tail_log)
 
@@ -93,17 +89,13 @@ class DefaultInspectorLogParser(BaseParser):
             if line[0] == "#":
                 continue
             test_item = dict(zip(DEFAULT_KEYS, map(str.strip, line.split(","))))
-            test_item["INSP_DTL_SEQ"] = (
-                str(sequence := sequence + 1) if incremental_sequence else str(0)
-            )
+            test_item["INSP_DTL_SEQ"] = str(sequence := sequence + 1) if incremental_sequence else str(0)
             records.append(test_item)
 
         # 최종 검사여부 확인
         tested_items = set()
         for record in records[::-1]:  # 역순으로 처음 등장 항목을 Y로 지정
-            record["IS_FINAL"] = (
-                "Y" if record["Test_Conditions"] not in tested_items else "N"
-            )
+            record["IS_FINAL"] = "Y" if record["Test_Conditions"] not in tested_items else "N"
             tested_items.add(record["Test_Conditions"])
         return records
 
@@ -149,14 +141,10 @@ class DefaultInspectorLogParser(BaseParser):
                         case _:  # 마지막 데이터만 취득
                             key = self._replace_invalid_key_chars(splited_line[-2])
                             additional_dict[key] = splited_line[-1]
-                            logger.warning(
-                                f"An unexpected message of {line} in {self.test_code}"
-                            )
+                            logger.warning(f"An unexpected message of {line} in {self.test_code}")
                 # case of no ':'
                 case _:
-                    logger.warning(
-                        f"An unexpected message of {line} in {self.test_code}"
-                    )
+                    logger.warning(f"An unexpected message of {line} in {self.test_code}")
         default_dict.update({"ADDITIONAL_INFO": additional_dict})
         return default_dict
 
@@ -175,9 +163,7 @@ class DefaultInspectorLogParser(BaseParser):
             if start_pos == -1:
                 break
             else:
-                end_pos = (
-                    start_pos + raw_text[start_pos:].find(between[1]) + len(between[1])
-                )
+                end_pos = start_pos + raw_text[start_pos:].find(between[1]) + len(between[1])
                 raw_text = raw_text[:start_pos] + raw_text[end_pos:]
         return raw_text
 
@@ -196,9 +182,7 @@ class DefaultInspectorLogParser(BaseParser):
         # 추출된 키가 기본 키보다 더 많은 경우 추가되는 부분만 리스트로 구성하여 반환
         extracted_keys = raw_text[start_pos:end_pos].split(",")
         additional_keys = (
-            [k.strip() for k in extracted_keys[len(DEFAULT_KEYS) :]]
-            if len(extracted_keys) > len(DEFAULT_KEYS)
-            else []
+            [k.strip() for k in extracted_keys[len(DEFAULT_KEYS) :]] if len(extracted_keys) > len(DEFAULT_KEYS) else []
         )
         return additional_keys
 
@@ -249,20 +233,11 @@ class RFInspectorLogParser(DefaultInspectorLogParser):
         # 2. test_condition의 내용을 더욱 세부적으로 구분하여 rf_info 컬럼에 추가함
         sequence = ["tech", "band", "direction", "channel", "sigpath", "item"]
         for test_record in parsed_massage["DETAIL"]:
-            splited_info = test_record["Test_Conditions"].split(
-                "_", maxsplit=len(sequence) - 1
-            )
+            splited_info = test_record["Test_Conditions"].split("_", maxsplit=len(sequence) - 1)
             if len(splited_info) <= 3:
                 continue  # 아랫열에서 out of range 에러 방지
             if splited_info[2].upper() == "RX" or splited_info[2].upper() == "TX":
                 test_record.update(
-                    {
-                        "RF_INFO": {
-                            key: value
-                            for key, value in zip(
-                                sequence, map(str.strip, splited_info)
-                            )
-                        }
-                    }
+                    {"RF_INFO": {key: value for key, value in zip(sequence, map(str.strip, splited_info))}}
                 )
         return parsed_massage

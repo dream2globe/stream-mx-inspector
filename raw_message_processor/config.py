@@ -11,7 +11,7 @@ from pydantic_settings import (
 
 from utils.logger import logger
 
-CONFIG_PATH = Path(__file__).parent.parent / "config" / "processor" / "gumi_dev.yaml"
+CONFIG_PATH = Path(__file__).parent.parent / "config" / "processor" / "dev.yaml"
 
 
 def yaml_config_settings_source() -> dict[str, Any]:
@@ -44,6 +44,10 @@ class KafkaProducerSettings(BaseModel):
     max_request_size_mb: int = 1
 
 
+class SchemaRegistrySettings(BaseModel):
+    url: str
+
+
 class AppSettings(BaseSettings):
     """raw_message_processor 어플리케이션의 전체 설정을 관리합니다."""
 
@@ -52,6 +56,7 @@ class AppSettings(BaseSettings):
     log: LogSettings
     consumer: KafkaConsumerSettings
     producer: KafkaProducerSettings
+    schema_registry: SchemaRegistrySettings
 
     model_config = SettingsConfigDict(
         env_file=".env",

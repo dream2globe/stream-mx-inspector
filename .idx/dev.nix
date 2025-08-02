@@ -5,9 +5,7 @@
   channel = "stable-24.05"; # or "unstable"
 
   # Use https://search.nixos.org/packages to find packages
-  packages = [
-    pkgs.uv
-  ];
+  packages = [];
 
   # Sets environment variables in the workspace
   env = {};
@@ -16,7 +14,6 @@
     extensions = [
       # "vscodevim.vim"
       "charliermarsh.ruff"
-      "dracula-theme.theme-dracula"
       "eamodio.gitlens"
       "KevinRose.vsc-python-indent"
       "mechatroner.rainbow-csv"
@@ -29,6 +26,8 @@
       "ms-toolsai.vscode-jupyter-cell-tags"
       "ms-toolsai.vscode-jupyter-slideshow"
       "castrogusttavo.symbols"
+      "Avetis.tokyo-night"
+      "rodolphebarbanneau.python-docstring-highlighter"
     ];
 
     # Enable previews
@@ -52,8 +51,8 @@
     workspace = {
       # Runs when a workspace is first created
       onCreate = {
-        # Example: install JS dependencies from NPM
-        # npm-install = "npm install";
+        # Install uv using the official script
+        install-uv = "curl -LsSf https://astral.sh/uv/install.sh | sh";
       };
       # Runs when the workspace is (re)started
       onStart = {

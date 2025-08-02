@@ -8,29 +8,59 @@ from utils.logger import logger, setup_logger
 from .config import settings
 from .exceptions import ParsingError, TestCodeExtractionError, UnsupportedTestCodeError
 from .parser import get_parser_for, get_test_code
-from .schema import full_schema, master_schema, serialize_to_avro
+from .schema import avro_full_serializer, avro_master_serializer
+
+
+async def serialize_and_send(producer: AIOKafkaProducer, serializer, topic: str, data: dict, test_code: str):
+    """주어진 데이터를 직렬화하고 Kafka 토픽으로 전송합니다."""
+    try:
+        payload = await asyncio.to_thread(serializer, data)
+        await producer.send(topic, payload)
+    except Exception as e:
+        # 직렬화 또는 전송 실패 시 에러 로깅
+        logger.error(
+            f"[{test_code}] Failed to serialize/send message to topic {topic}: {e}",
+            extra={"data": data},
+        )
 
 
 async def process_message(message: bytes, producer: AIOKafkaProducer):
     """카프카의 원 메시지를 처리하여 새로운 토픽으로 전달합니다."""
     decoded_message = message.decode("utf-8", errors="ignore")
+
     try:
-        # 1. 테스크 코드(공정)에 맞는 파서를 선택
+        # 1. 테스트 코드(공정)에 맞는 파서를 선택
         test_code = get_test_code(message)
         parser = get_parser_for(test_code)
 
-        # 2. 데이터를 딕셔너리 타입으로 파싱함
+        # 2. 데이터를 딕셔너리 타입으로 파싱
+        # 파서는 {"MASTER": {...}, "DETAIL": [...]} 형태의 딕셔너리를 반환합니다.
         parsed_message = parser.parse(message)
+        master_data = parsed_message.get("MASTER")
 
-        # 3. 마스터 데이터(일부 정보)와 디테일 데이터(모든 정보)를 avro타입으로 직렬화 후 각각의 토픽으로 전송
-        await producer.send(
+        if not master_data:
+            logger.warning(
+                f"[{test_code}] 'MASTER' data not found in parsed message. Skipping.",
+                extra={"raw_message": decoded_message},
+            )
+            return
+
+        # 3. 마스터 데이터와 전체 데이터를 각각 직렬화 후 병렬로 전송
+        master_task = serialize_and_send(
+            producer,
+            avro_master_serializer,
             settings.producer.master_topic,
-            serialize_to_avro(parsed_message["MASTER"], master_schema),
+            master_data,
+            test_code,
         )
-        await producer.send(
+        full_task = serialize_and_send(
+            producer,
+            avro_full_serializer,
             settings.producer.detail_topic,
-            serialize_to_avro(parsed_message, full_schema),
+            parsed_message,  # 전체 메시지 객체
+            test_code,
         )
+        await asyncio.gather(master_task, full_task)
 
     except TestCodeExtractionError as e:
         logger.error(f"{e}. Skipping message.", extra={"raw_message": decoded_message})
@@ -38,19 +68,19 @@ async def process_message(message: bytes, producer: AIOKafkaProducer):
         logger.error(f"{e}. Skipping message.", extra={"raw_message": decoded_message})
     except ParsingError as e:
         logger.error(
-            f"[{test_code}] Message Parsing error of {e}",
+            f"[{test_code}] Message Parsing error: {e}",
             extra={"raw_message": decoded_message},
         )
     except Exception as e:
         logger.error(
-            f"[{test_code}] An unexpected error occurred during message processing of {e}.",
+            f"[{test_code}] An unexpected error occurred during message processing: {e}.",
             extra={"raw_message": decoded_message},
         )
 
 
 async def main():
     """어플리케이션 초기화 및 실행을 담당합니다."""
-    # 로거 세팅 (설정 파일 기반)
+    # 로거 세팅
     setup_logger(
         console_level=settings.log.console_level,
         file_level=settings.log.file_level,
@@ -63,8 +93,9 @@ async def main():
     )
     logger.info(f"  - Kafka Consumer: {settings.consumer.model_dump()}")
     logger.info(f"  - Kafka Producer: {settings.producer.model_dump()}")
+    logger.info(f"  - Schema Registry: {settings.schema_registry.model_dump()}")
 
-    # 컨슈머 및 프로듀서 실행
+    # Kafka 클라이언트 초기화
     consumer = AIOKafkaConsumer(
         settings.consumer.topic,
         bootstrap_servers=settings.consumer.bootstrap_servers,
@@ -77,28 +108,27 @@ async def main():
         compression_type=settings.producer.compression_type,
         max_request_size=settings.producer.max_request_size_mb * 1048576,
     )
+
     await consumer.start()
     await producer.start()
+    logger.info("Kafka consumer and producer started successfully.")
 
-    # 카프카 메시지 프로세싱
     try:
         while True:
-            result = await consumer.getmany(timeout_ms=10000, max_records=200)
+            result = await consumer.getmany(timeout_ms=1000, max_records=200)
             if not result:
                 continue
 
             for tp, messages in result.items():
                 logger.info(f"Fetched {len(messages)} messages from partition {tp}.")
-                tasks = [
-                    process_message(message.value, producer)
-                    for message in messages
-                    if message.value is not None
-                ]
-            if tasks:
-                await asyncio.gather(*tasks)
+                tasks = [process_message(msg.value, producer) for msg in messages if msg.value is not None]
+                if tasks:
+                    await asyncio.gather(*tasks)
+
             if not settings.debug_mode:
                 await consumer.commit()
-            logger.info("Offset committed successfully for the processed batch.")
+                logger.info("Offset committed successfully for the processed batch.")
+
     finally:
         logger.info("Application shutting down.")
         await producer.stop()

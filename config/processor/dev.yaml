@@ -15,3 +15,6 @@ consumer:
   bootstrap_servers: "10.40.74.164:9092, 10.40.74.165:9092, 10.40.74.166:9092"
   topic: "GUMI_MES_NASLOG_SPC"
   group_id: "PIPELINE_TEST_BY_SHYEON"
+
+schema_registry:
+  url: "http://localhost:8081"

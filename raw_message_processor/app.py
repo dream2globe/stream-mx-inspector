@@ -87,15 +87,13 @@ async def main():
             if not result:
                 continue
 
-            tasks = producer.create_batch()
             for tp, messages in result.items():
                 logger.info(f"Fetched {len(messages)} messages from partition {tp}.")
-                metadata = tasks.append(
+                tasks = [
                     process_message(message.value, producer)
                     for message in messages
                     if message.value is not None
-                )
-                assert metadata is not None
+                ]
             if tasks:
                 await asyncio.gather(*tasks)
             if not settings.debug_mode:

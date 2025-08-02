@@ -28,7 +28,7 @@
       "ms-toolsai.jupyter-renderers"
       "ms-toolsai.vscode-jupyter-cell-tags"
       "ms-toolsai.vscode-jupyter-slideshow"
-      "PKief.material-icon-theme"
+      "castrogusttavo.symbols"
     ];
 
     # Enable previews

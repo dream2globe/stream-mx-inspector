@@ -9,5 +9,6 @@ wheels/
 # Virtual environments
 .venv
 
-# vscode
-.vscode
+# Development Enviorment
+# .vscode
+# .idx

@@ -1,4 +1,3 @@
-debug_mode: "true"
 log:
   console_level: "INFO"
   file_level: "ERROR"

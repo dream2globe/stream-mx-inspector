@@ -12,7 +12,7 @@ uv sync
 ```
 If you don't have `uv` installed, follow the [uv documentation](https://github.com/astral-sh/uv) for installation instructions.
 
-## Local Kafka Test Environment with Docker Compose
+
 
 For local testing, you can use `docker-compose` to set up a complete Kafka environment. The configuration is defined in the `docker-compose.yml` file and includes:
 
@@ -42,29 +42,22 @@ For local testing, you can use `docker-compose` to set up a complete Kafka envir
 
 ### Registering Avro Schemas with the Local Schema Registry
 
-To use Avro for serialization and deserialization with Kafka, the schemas must be registered with the Schema Registry. Assuming your schema registry is running on `http://localhost:8081`, you can register the necessary schemas using `curl`.
+The `curl` command for registering schemas can sometimes fail. A more reliable method is to use the AKHQ web interface.
 
-**Register the `full_message.json` schema:**
-```bash
-curl -X POST -H "Content-Type: application/vnd.schemaregistry.v1+json" \
-  --data @- http://localhost:8081/subjects/inspector-log-full/versions <<EOF
-{
-  "schema": $(jq -c . < schema/full_message.json | sed 's/"/\\"/g')
-}
-EOF
-```
+1.  **Access AKHQ**: Open your web browser and navigate to the AKHQ UI at `http://localhost:8080`.
+2.  **Navigate to Schemas**: In the AKHQ sidebar, go to the "Schemas" section.
+3.  **Register `full_message.json`**:
+    *   Click on "New Schema".
+    *   Set the **Subject** to `mx-inspector-log-full`.
+    *   Copy the entire content of the `schema/full_message.json` file and paste it into the "Schema" text area.
+    *   Click "Save". The schema will be registered with ID `10`.
+4.  **Register `master_message.json`**:
+    *   Click on "New Schema" again.
+    *   Set the **Subject** to `mx-inspector-log-master`.
+    *   Copy the entire content of the `schema/master_message.json` file and paste it into the "Schema" text area.
+    *   Click "Save". The schema will be registered with ID `11`.
 
-**Register the `master_message.json` schema:**
-```bash
-curl -X POST -H "Content-Type: application/vnd.schemaregistry.v1+json" \
-  --data @- http://localhost:8081/subjects/inspector-log-master/versions <<EOF
-{
-  "schema": $(jq -c . < schema/master_message.json | sed 's/"/\\"/g')
-}
-EOF
-```
-
-Once the environment is running and schemas are registered, you can start the project's services to test the full data pipeline.
+Once the environment is running and schemas are registered with IDs `10` and `11`, you can start the project's services to test the full data pipeline.
 
 ## Packages
 

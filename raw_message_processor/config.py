@@ -9,7 +9,7 @@ from pydantic_settings import (
     SettingsConfigDict,
 )
 
-from utils.logger import logger
+from util.logger import logger
 
 CONFIG_PATH = Path(__file__).parent.parent / "config" / "processor" / "dev.yaml"
 
@@ -50,8 +50,6 @@ class SchemaRegistrySettings(BaseModel):
 
 class AppSettings(BaseSettings):
     """raw_message_processor 어플리케이션의 전체 설정을 관리합니다."""
-
-    debug_mode: bool = False
 
     log: LogSettings
     consumer: KafkaConsumerSettings

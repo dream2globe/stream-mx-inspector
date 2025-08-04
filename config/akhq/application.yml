@@ -1,0 +1,10 @@
+akhq:
+  connections:
+    dev:
+      properties:
+        bootstrap.servers: "172.21.0.2:9092"
+      schema-registry:
+        url: "http://172.21.0.2:8081"
+      connect:
+        - name: "connect-1"
+          url: "http://172.21.0.2:8083"

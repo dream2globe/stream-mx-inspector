@@ -1,20 +1,21 @@
-from utils.logger import logger
+from util.logger import logger
 
 from ..exceptions import DelimiterNotFoundError
-from ..schema import master_fields
+from ..schema import master_default_dict
 from .base import BaseParser
 
-DEFAULT_KEYS = [
-    "Test_Conditions",
-    "Measured_Value",
-    "Lower_Limit",
-    "Upper_Limit",
-    "P_F",
-    "Sec",
-    "Code_Value",
-    "Code_Lower_Limit",
-    "Code_Upper_Limit",
-]
+DEFAULT_TESTITEM_DICT = {
+    "Test_Conditions": None,
+    "Measured_Value": None,
+    "Lower_Limit": None,
+    "Upper_Limit": None,
+    "P_F": None,
+    "Sec": None,
+    "Code_Value": None,
+    "Code_Lower_Limit": None,
+    "Code_Upper_Limit": None,
+    "RF_INFO": None,
+}
 
 
 class DefaultInspectorLogParser(BaseParser):
@@ -58,11 +59,15 @@ class DefaultInspectorLogParser(BaseParser):
         booting_log = cleaned_text[: delimiter_start_pos["header"]]
         booting_record = self._log_to_record(booting_log, False)
         # 4-2. 바디 추출, 검사 순서값이 1씩 증가
-        body_log = cleaned_text[delimiter_start_pos["body"] : delimiter_start_pos["tail"]]
+        body_log = cleaned_text[
+            delimiter_start_pos["body"] : delimiter_start_pos["tail"]
+        ]
         body_record = self._log_to_record(body_log, True)
 
         # 5. 헤드와 테일 부분의 검사 요약정보
-        header_log = cleaned_text[delimiter_start_pos["header"] : delimiter_start_pos["body"]]
+        header_log = cleaned_text[
+            delimiter_start_pos["header"] : delimiter_start_pos["body"]
+        ]
         tail_log = cleaned_text[delimiter_start_pos["tail"] :]
         summary_dict = self._log_to_dict(header_log + tail_log)
 
@@ -81,6 +86,7 @@ class DefaultInspectorLogParser(BaseParser):
         """csv형태의 로그 내용을 dictionary record 형태로 변환함"""
 
         # 딕셔너리 리스트로 변환
+        test_item = DEFAULT_TESTITEM_DICT.copy()
         records = []
         sequence = 0
         for line in raw_text.split("\r\n"):
@@ -88,14 +94,20 @@ class DefaultInspectorLogParser(BaseParser):
                 continue
             if line[0] == "#":
                 continue
-            test_item = dict(zip(DEFAULT_KEYS, map(str.strip, line.split(","))))
-            test_item["INSP_DTL_SEQ"] = str(sequence := sequence + 1) if incremental_sequence else str(0)
+            for k, v in zip(DEFAULT_TESTITEM_DICT, map(str.strip, line.split(","))):
+                test_item[k] = v
+            test_item["INSP_DTL_SEQ"] = (
+                str(sequence := sequence + 1) if incremental_sequence else str(0)
+            )
+            test_item["RF_INFO"] = None
             records.append(test_item)
 
         # 최종 검사여부 확인
         tested_items = set()
         for record in records[::-1]:  # 역순으로 처음 등장 항목을 Y로 지정
-            record["IS_FINAL"] = "Y" if record["Test_Conditions"] not in tested_items else "N"
+            record["IS_FINAL"] = (
+                "Y" if record["Test_Conditions"] not in tested_items else "N"
+            )
             tested_items.add(record["Test_Conditions"])
         return records
 
@@ -112,7 +124,7 @@ class DefaultInspectorLogParser(BaseParser):
         Returns:
             dict[str | str]: _description_
         """
-        default_dict = {}
+        default_dict = master_default_dict.copy()
         additional_dict = {}
         for line in raw_text.split("\r\n"):
             # empty line or delimiters
@@ -127,7 +139,7 @@ class DefaultInspectorLogParser(BaseParser):
                 case 2:
                     key = self._replace_invalid_key_chars(splited_line[0])
                     value = splited_line[1]
-                    if key in master_fields:
+                    if key in default_dict:
                         default_dict[key] = value
                     else:
                         additional_dict[key] = value
@@ -141,11 +153,15 @@ class DefaultInspectorLogParser(BaseParser):
                         case _:  # 마지막 데이터만 취득
                             key = self._replace_invalid_key_chars(splited_line[-2])
                             additional_dict[key] = splited_line[-1]
-                            logger.warning(f"An unexpected message of {line} in {self.test_code}")
+                            logger.warning(
+                                f"An unexpected message of {line} in {self.test_code}"
+                            )
                 # case of no ':'
                 case _:
-                    logger.warning(f"An unexpected message of {line} in {self.test_code}")
-        default_dict.update({"ADDITIONAL_INFO": additional_dict})
+                    logger.warning(
+                        f"An unexpected message of {line} in {self.test_code}"
+                    )
+        default_dict["ADDITIONAL_INFO"] = additional_dict
         return default_dict
 
     def _remove_comment(self, raw_text: str) -> str:
@@ -163,28 +179,32 @@ class DefaultInspectorLogParser(BaseParser):
             if start_pos == -1:
                 break
             else:
-                end_pos = start_pos + raw_text[start_pos:].find(between[1]) + len(between[1])
+                end_pos = (
+                    start_pos + raw_text[start_pos:].find(between[1]) + len(between[1])
+                )
                 raw_text = raw_text[:start_pos] + raw_text[end_pos:]
         return raw_text
 
-    def _extract_additional_keys(self, raw_text: str) -> list[str]:
-        """사전 정의된 컬럼(default_keys)보다 더 정의된 컬럼을 찾아 반환합니다."""
+    # def _extract_additional_keys(self, raw_text: str) -> list[str]:
+    #     """사전 정의된 컬럼(default_keys)보다 더 정의된 컬럼을 찾아 반환합니다."""
 
-        # 컬럼의 시작 위치를 찾아 키 정보가 담긴 문자열 추출
-        start_pos = self._find_words(
-            raw_text,
-            ["Test Condition", "Test item,", "Test Item,"],
-        )
-        if start_pos == -1:
-            return []
-        end_pos = start_pos + raw_text[start_pos:].find("\r\n") + 2  # \r\n 반영
+    #     # 컬럼의 시작 위치를 찾아 키 정보가 담긴 문자열 추출
+    #     start_pos = self._find_words(
+    #         raw_text,
+    #         ["Test Condition", "Test item,", "Test Item,"],
+    #     )
+    #     if start_pos == -1:
+    #         return []
+    #     end_pos = start_pos + raw_text[start_pos:].find("\r\n") + 2  # \r\n 반영
 
-        # 추출된 키가 기본 키보다 더 많은 경우 추가되는 부분만 리스트로 구성하여 반환
-        extracted_keys = raw_text[start_pos:end_pos].split(",")
-        additional_keys = (
-            [k.strip() for k in extracted_keys[len(DEFAULT_KEYS) :]] if len(extracted_keys) > len(DEFAULT_KEYS) else []
-        )
-        return additional_keys
+    #     # 추출된 키가 기본 키보다 더 많은 경우 추가되는 부분만 리스트로 구성하여 반환
+    #     extracted_keys = raw_text[start_pos:end_pos].split(",")
+    #     additional_keys = (
+    #         [k.strip() for k in extracted_keys[len(DEFAULT_TESTITEM_DICT) :]]
+    #         if len(extracted_keys) > len(DEFAULT_TESTITEM_DICT)
+    #         else []
+    #     )
+    #     return additional_keys
 
     def _find_words(self, text: str, words: list[str]) -> int:
         for word in words:
@@ -233,11 +253,20 @@ class RFInspectorLogParser(DefaultInspectorLogParser):
         # 2. test_condition의 내용을 더욱 세부적으로 구분하여 rf_info 컬럼에 추가함
         sequence = ["tech", "band", "direction", "channel", "sigpath", "item"]
         for test_record in parsed_massage["DETAIL"]:
-            splited_info = test_record["Test_Conditions"].split("_", maxsplit=len(sequence) - 1)
+            splited_info = test_record["Test_Conditions"].split(
+                "_", maxsplit=len(sequence) - 1
+            )
             if len(splited_info) <= 3:
                 continue  # 아랫열에서 out of range 에러 방지
             if splited_info[2].upper() == "RX" or splited_info[2].upper() == "TX":
                 test_record.update(
-                    {"RF_INFO": {key: value for key, value in zip(sequence, map(str.strip, splited_info))}}
+                    {
+                        "RF_INFO": {
+                            key: value
+                            for key, value in zip(
+                                sequence, map(str.strip, splited_info)
+                            )
+                        }
+                    }
                 )
         return parsed_massage

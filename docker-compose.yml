@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  fast-data-dev:
+    image: landoop/fast-data-dev:latest
+    container_name: fast-data-dev
+    hostname: fast-data-dev
+    ports:
+      - "2181:2181"  # ZooKeeper
+      - "3030:3030"  # Lenses UI
+      - "8081:8081"  # Schema Registry
+      - "8082:8082"  # Kafka Connect
+      - "9092:9092"  # Kafka Broker
+    networks:
+      - kafka-net
+    volumes:
+      - /data/kafka:/data/kafka/logdir
+    environment:
+      - ADV_HOST=10.254.161.191
+      - RUNTESTS=1
+      - KAFKA_MESSAGE_MAX_BYTES=5242880
+      - KAFKA_REPLICA_FETCH_MAX_BYTES=5242880
+      - KAFKA_PRODUCER_PROPERTIES_MAX_REQUEST_SIZE=5242880
+      - KAFKA_CONSUMER_PROPERTIES_FETCH_MAX_BYTES=5242880
+      
+  akhq:
+    image: tchiotludo/akhq:latest
+    container_name: akhq
+    hostname: akhq
+    ports:
+      - "8080:8080" # AKHQ Web UI
+    volumes:
+      - ./config/akhq/application.yml:/app/application.yml
+    networks:
+      - kafka-net
+    depends_on:
+      - fast-data-dev
+
+networks:
+  kafka-net:

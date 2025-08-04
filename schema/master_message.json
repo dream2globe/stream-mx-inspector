@@ -1,0 +1,43 @@
+{
+  "name": "MASTER",
+  "type": "record",
+  "fields": [
+    {"name": "BCR_IP", "type": ["null", "string"], "default": null},
+    {"name": "DATE", "type": ["null", "string"], "default": null},
+    {"name": "INSP_EQUIP_DATA_SEQ", "type": ["null", "string"], "default": null},
+    {"name": "JIG", "type": ["null", "string"], "default": null},   
+    {"name": "LOG_FILE_CRE_DT", "type": ["null", "string"], "default": null},
+    {"name": "LOG_FILE_NM", "type": ["null", "string"], "default": null},
+    {"name": "LOG_FILE_TRANS_DT", "type": ["null", "string"], "default": null},
+    {"name": "MODEL", "type": ["null", "string"], "default": null},
+    {"name": "PROGRAM", "type": ["null", "string"], "default": null},   
+    {"name": "RESULT", "type": ["null", "string"], "default": null},
+    {"name": "TESTCODE", "type": ["null", "string"], "default": null},   
+    {"name": "TEST_TIME", "type": ["null", "string"], "default": null},
+    {"name": "TIME", "type": ["null", "string"], "default": null},
+    {"name": "LOGVERSION", "type": ["null", "string"], "default": null},       
+    {"name": "RDM_LOT", "type": ["null", "string"], "default": null},
+    {"name": "CHIP_ID_OCTA", "type": ["null", "string"], "default": null},
+    {"name": "CHIP_ID_OCTA_2nd", "type": ["null", "string"], "default": null},
+    {"name": "ERROR_CODE", "type": ["null", "string"], "default": null},
+    {"name": "FAILITEM", "type": ["null", "string"], "default": null},
+    {"name": "INIFILE", "type": ["null", "string"], "default": null},
+    {"name": "INSP_DT", "type": ["null", "string"], "default": null},
+    {"name": "INSTRUMENT", "type": ["null", "string"], "default": null},
+    {"name": "LINE_CODE", "type": ["null", "string"], "default": null},
+    {"name": "LOG_EQUIP_CODE", "type": ["null", "string"], "default": null},
+    {"name": "OCTA_CELL_ID", "type": ["null", "string"], "default": null},
+    {"name": "OCTA_CELL_ID_2nd", "type": ["null", "string"], "default": null},
+    {"name": "P_N", "type": ["null", "string"], "default": null},
+    {"name": "RDMADDFILE", "type": ["null", "string"], "default": null},
+    {"name": "SMART_RETEST", "type": ["null", "string"], "default": null},
+    {"name": "S_W", "type": ["null", "string"], "default": null},
+    {"name": "TESTLOT", "type": ["null", "string"], "default": null},
+    {"name": "topcode", "type": ["null", "string"], "default": null},
+    {
+      "name": "ADDITIONAL_INFO",
+      "type": ["null", {"type": "map", "values": "string"}],
+      "default": null
+    }
+  ]
+}

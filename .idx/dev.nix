@@ -6,6 +6,11 @@
 
   # Use https://search.nixos.org/packages to find packages
   packages = [
+    # pkgs.go
+    # pkgs.python311
+    # pkgs.python311Packages.pip
+    # pkgs.nodejs_20
+    # pkgs.nodePackages.nodemon
     pkgs.docker
     pkgs.docker-compose
   ];
@@ -16,10 +21,12 @@
     # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
     extensions = [
       # "vscodevim.vim"
+      "Avetis.tokyo-night"
       "charliermarsh.ruff"
       "eamodio.gitlens"
-      "KevinRose.vsc-python-indent"
-      "mechatroner.rainbow-csv"
+      "GitHub.vscode-pull-request-github"
+      "hoovercj.vscode-power-mode"
+      "LaurentTreguier.vscode-simple-icons"
       "mhutchie.git-graph"
       "ms-python.debugpy"
       "ms-python.python"
@@ -28,11 +35,44 @@
       "ms-toolsai.jupyter-renderers"
       "ms-toolsai.vscode-jupyter-cell-tags"
       "ms-toolsai.vscode-jupyter-slideshow"
-      "castrogusttavo.symbols"
-      "Avetis.tokyo-night"
-      "rodolphebarbanneau.python-docstring-highlighter"
       "njpwerner.autodocstring"
       "oderwat.indent-rainbow"
+      "wilfriedago.vscode-symbols-icon-theme"
+      "franneck94.vscode-python-config"
+      "franneck94.vscode-python-dev-extension-pack"
+      "njqdev.vscode-python-typehint"
+      "tamasfe.even-better-toml"
     ];
+
+    # Enable previews
+    previews = {
+      enable = true;
+      previews = {
+        # web = {
+        #   # Example: run "npm run dev" with PORT set to IDX's defined port for previews,
+        #   # and show it in IDX's web preview panel
+        #   command = ["npm" "run" "dev"];
+        #   manager = "web";
+        #   env = {
+        #     # Environment variables to set for your server
+        #     PORT = "$PORT";
+        #   };
+        # };
+      };
+    };
+
+    # Workspace lifecycle hooks
+    workspace = {
+      # Runs when a workspace is first created
+      onCreate = {
+        # Example: install JS dependencies from NPM
+        # npm-install = "npm install";
+      };
+      # Runs when the workspace is (re)started
+      onStart = {
+        # Example: start a background task to watch and re-build backend code
+        # watch-backend = "npm run watch-backend";
+      };
+    };
   };
 }

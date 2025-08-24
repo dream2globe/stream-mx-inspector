@@ -1,0 +1,16 @@
+configuration:
+  akhq:
+    connections:
+      minikube-kafka:
+        properties:
+          # Minikube에서 호스트 PC의 Kafka에 접근하기 위한 주소
+          bootstrap.servers: "host.minikube.internal:9092"
+        
+        schema-registry:
+          # 쿠버네티스 내부 DNS를 통해 Schema Registry 서비스에 접근
+          url: "http://schema-registry-service.kafka.svc.cluster.local:8081"
+        
+        connect:
+          # 쿠버네-티스 내부 DNS를 통해 Kafka Connect API 서비스에 접근
+          - name: "my-connect-cluster"
+            url: "http://my-connect-cluster-connect-api.kafka.svc.cluster.local:8083"

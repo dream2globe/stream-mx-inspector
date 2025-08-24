@@ -1,0 +1,44 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+metadata:
+  name: s3-sink-master-logs
+  namespace: kafka
+  labels:
+    # This label must match the name of the KafkaConnect cluster
+    strimzi.io/cluster: my-connect-cluster
+spec:
+  class: io.confluent.connect.s3.S3SinkConnector
+  tasksMax: 2
+  config:
+    # Connector Details
+    connector.class: "io.confluent.connect.s3.S3SinkConnector"
+    topics: "mx-inspector-log-master"
+
+    # S3 Connection
+    s3.bucket.name: "kafka-connect-sink"
+1    # The endpoint for MinIO running on the host machine, accessible from Minikube
+    store.url: "http://host.minikube.internal:9000"
+    s3.path.style.access.enabled: "true"
+    s3.region: "us-east-1" # Dummy region for MinIO
+    aws.access.key.id: "minioadmin"
+    aws.secret.access.key: "minioadmin"
+
+    # Data Format
+    format.class: "io.confluent.connect.s3.format.parquet.ParquetFormat"
+    key.converter: "org.apache.kafka.connect.storage.StringConverter"
+    value.converter: "io.confluent.connect.avro.AvroConverter"
+    value.converter.schema.registry.url: "http://schema-registry.kafka.svc:8081"
+
+    # Storage and Partitioning
+    storage.class: "io.confluent.connect.s3.storage.S3Storage"
+    topics.dir: "raw-data"
+    partitioner.class: "io.confluent.connect.storage.partitioner.TimeBasedPartitioner"
+    path.format: "'year'=YYYY/'month'=MM/'day'=dd"
+    locale: "en-US"
+    timezone: "UTC"
+    
+    # Flush and Rotation Strategy
+    # Flushes records every 5 minutes (300,000 ms)
+    rotate.interval.ms: 300000 
+    # Flushes records if 10,000 messages have been processed before the interval is met
+    flush.size: 10000
